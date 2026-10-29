@@ -233,14 +233,28 @@ let kingLine='',kingLineTime=0,kingLastSpeak=-10,kingHitFx=[];
 const BOSS_TAUNTS=["That's the best you got?","Come get some!","You call that an attack?","Ha! You don't stand a chance!","My kingdom will crush you!"];
 const BOSS_HURT=["OW! HEY!","Whoa, whoa, whoa!","Okay! Just kidding!","You're better than I thought!","Hey! Watch the face!","Ouch! That actually hurt!"];
 let bossVoiceLast=0,bossVoiceCount=0;
+// Boss speech: never use the device's arbitrary default (often a female voice).
+// If no identifiable male English voice is installed, stay silent instead.
+let kingMaleVoice=null;
+function selectKingVoice(){
+  if(!('speechSynthesis' in window))return null;
+  const voices=window.speechSynthesis.getVoices().filter(v=>/^en([_-]|$)/i.test(v.lang||''));
+  const maleNames=/\\b(daniel|alex|fred|aaron|tom|oliver|arthur|rishi|george|james|david|lee|reed|evan|nathan|matthew|gordon|albert|bruce|ralph|junior|male)\\b/i;
+  const femaleNames=/\\b(samantha|victoria|karen|moira|tessa|allison|ava|susan|serena|female)\\b/i;
+  return voices.find(v=>maleNames.test(v.name)&&!femaleNames.test(v.name))||null;
+}
 function kingSpeak(line,hurt=false,force=false){
- if(!sound||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
+ if(!sound||!boss||!playing||paused||(!hurt&&stormIntro>0)||!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined')return;
  const now=Date.now();if(!force&&now-bossVoiceLast<2300)return;
+ const voice=selectKingVoice();
+ if(!voice)return; // Do not let iOS substitute an unwanted voice.
  bossVoiceLast=now;
- try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(line);u.lang='en-US';u.rate=hurt?1.16:.78;u.pitch=hurt?1.85:.52;u.volume=hurt?1:.9;
- const voices=window.speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.toLowerCase().startsWith('en'));
- const deep=voices.find(v=>/daniel|fred|alex|male/i.test(v.name));u.voice=(hurt?voices.find(v=>/samantha|female|victoria/i.test(v.name)):deep)||voices[0]||null;
- window.speechSynthesis.speak(u);
+ try{
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(line);
+  u.lang=voice.lang;u.voice=voice;
+  u.rate=hurt?1.14:.72;u.pitch=hurt?1.23:.35;u.volume=1;
+  window.speechSynthesis.speak(u);
  }catch(e){}
 }
 function bossTauntVoice(){if(!boss||bossDefeated)return;kingSpeak(BOSS_TAUNTS[bossVoiceCount++%BOSS_TAUNTS.length]);}
@@ -250,7 +264,7 @@ let bossHornets=[],hornetSquashed=0,hornetEscaped=0,stormFlash=0,stormShake=0,st
 const KING_TAUNTS=['IS THAT ALL YOU GOT?!','MY HORNETS WILL EAT YOU ALIVE!','YOU AIN’T NOTHING!','COME ON, LITTLE HUMAN!','HA HA HA! TOO SLOW!','NOT BAD... FOR A HUMAN!'];
 function stormBoom(){if(!sound)return;try{tone(63,.42,'sawtooth',.15);setTimeout(()=>{if(sound)tone(48,.5,'triangle',.13)},110)}catch(e){}}
 function stormTaunt(){stormLine=KING_TAUNTS[Math.floor(Math.random()*KING_TAUNTS.length)];stormLineTime=2.4;stormShake=5;stormBoom();}
-let bossFeedback="",bossFeedbackTime=0,bossImpact=0,bossShields=3,bossWeak=0,bossWeakCooldown=2.4,bossHits=0,bossDefeated=false,firebugExplosions=0,bossTestMode=false,bossTestLevel=10,firebursts=[],bossCinematic=0,bossCinematicFinal=false,bossFirebugQueued=false;function startBoss(){if('speechSynthesis' in window)window.speechSynthesis.cancel();bossVoiceLast=0;bossVoiceCount=0;clearInterval(raf);bossRound=level;bossTimer=32;bossSpawn=0;bossHornets=[];hornetSquashed=0;hornetEscaped=0;stormFlash=0;stormShake=0;stormNext=1.6;stormTauntAt=3.5;stormLeaving=false;stormIntro=5.0;bossCinematic=0;bossCinematicFinal=false;bossFirebugQueued=false;bossFeedback="";bossFeedbackTime=0;bossImpact=0;bossHits=0;bossShields=3;bossWeak=0;bossWeakCooldown=2.5;bossDefeated=false;firebugExplosions=0;firebursts=[];stormLine='';stormLineTime=0;boss={x:180,y:115,t:0,hp:2+Math.max(0,Math.floor((bossRound-15)/5)),maxHp:2+Math.max(0,Math.floor((bossRound-15)/5))};playing=true;paused=false;mode='boss';$('overlay').style.display='none';$('pause').disabled=false;$('pause').textContent='Pause';$('status').textContent='👑 Insect God: defend 3 shields; strike when its core opens!';last=performance.now();update();draw();raf=setInterval(()=>tick(performance.now()),33);stormBoom();setTimeout(()=>{if(boss&&playing&&!paused)bossTauntVoice()},700)}
+let bossFeedback="",bossFeedbackTime=0,bossImpact=0,bossShields=3,bossWeak=0,bossWeakCooldown=2.4,bossHits=0,bossDefeated=false,firebugExplosions=0,bossTestMode=false,bossTestLevel=10,firebursts=[],bossCinematic=0,bossCinematicFinal=false,bossFirebugQueued=false;function startBoss(){if('speechSynthesis' in window)window.speechSynthesis.cancel();bossVoiceLast=0;bossVoiceCount=0;clearInterval(raf);bossRound=level;bossTimer=32;bossSpawn=0;bossHornets=[];hornetSquashed=0;hornetEscaped=0;stormFlash=0;stormShake=0;stormNext=1.6;stormTauntAt=6.0;stormLeaving=false;stormIntro=5.0;bossCinematic=0;bossCinematicFinal=false;bossFirebugQueued=false;bossFeedback="";bossFeedbackTime=0;bossImpact=0;bossHits=0;bossShields=3;bossWeak=0;bossWeakCooldown=2.5;bossDefeated=false;firebugExplosions=0;firebursts=[];stormLine='';stormLineTime=0;boss={x:180,y:115,t:0,hp:2+Math.max(0,Math.floor((bossRound-15)/5)),maxHp:2+Math.max(0,Math.floor((bossRound-15)/5))};playing=true;paused=false;mode='boss';$('overlay').style.display='none';$('pause').disabled=false;$('pause').textContent='Pause';$('status').textContent='👑 Insect God: defend 3 shields; strike when its core opens!';last=performance.now();update();draw();raf=setInterval(()=>tick(performance.now()),33);stormBoom()}
  function drawHornet(h){
  ctx.save();ctx.translate(h.x,h.y);ctx.rotate(h.angle);ctx.scale(h.scale||1,h.scale||1);
  const f=h.firebug, flap=Math.sin(h.phase*13)*.38;
@@ -354,7 +368,7 @@ if(stormIntro>0){ctx.save();ctx.fillStyle='rgba(8,12,27,.90)';ctx.fillRect(14,27
 else if(bossFeedbackTime>0){ctx.save();ctx.globalAlpha=Math.min(1,bossFeedbackTime*2);ctx.textAlign='center';ctx.font='bold 14px system-ui';ctx.fillStyle=bossImpact>0?'#ffe46c':bossWeak>0?'#a9ffb3':'#ffb3a3';ctx.shadowColor='#080c1b';ctx.shadowBlur=8;ctx.fillText(bossFeedback,W/2,265);ctx.restore()}
 ctx.restore()}
  function tickBoss(dt){boss.t+=dt;if(bossCinematic>0){bossCinematic=Math.max(0,bossCinematic-dt);stormShake=8+Math.random()*7;stormFlash=Math.max(0,Math.sin(boss.t*21)*.28);draw();if(bossCinematic<=0)endBoss();return}for(const f of firebursts){f.r+=dt*160;f.life-=dt}firebursts=firebursts.filter(f=>f.life>0);bossTimer=Math.max(0,bossTimer-dt);stormIntro=Math.max(0,stormIntro-dt);stormLineTime=Math.max(0,stormLineTime-dt);stormFlash=Math.max(0,stormFlash-dt*2.4);stormShake=Math.max(0,stormShake-dt*10);boss.x=180+Math.sin(boss.t*.9)*23;bossFeedbackTime=Math.max(0,bossFeedbackTime-dt);bossImpact=Math.max(0,bossImpact-dt*2.5);bossWeak=Math.max(0,bossWeak-dt);bossWeakCooldown-=dt;if(stormIntro<=0&&bossWeakCooldown<=0){bossWeak=4.0;bossWeakCooldown=5.4+Math.random()*2.0;bossFirebugQueued=true;bossFeedback='CORE EXPOSED!';bossFeedbackTime=1.1;tone(880,.18,'sine',.12);setTimeout(()=>tone(1170,.15,'sine',.10),160)}stormNext-=dt;stormTauntAt-=dt;
- if(stormTauntAt<=0){stormTaunt();bossTauntVoice();stormTauntAt=7+Math.random()*3;stormFlash=.35}
+ if(stormIntro<=0&&stormTauntAt<=0){stormTaunt();bossTauntVoice();stormTauntAt=7+Math.random()*3;stormFlash=.35}
  if(stormIntro<=0&&stormNext<=0){spawnHornetWave(bossFirebugQueued);bossFirebugQueued=false;const intensity=Math.max(0,Math.floor((bossRound-15)/5));stormNext=Math.max(.36,.57-intensity*.035)+Math.random()*.56; if(bossHornets.length>13)stormNext+=.40; if(Math.random()<.13){stormBoom();stormShake=2.5}}
  for(const h of bossHornets)moveHornet(h,dt);
  bossHornets=bossHornets.filter(h=>{if(h.y>H+35){hornetEscaped++;bossShields=Math.max(0,bossShields-1);stormFlash=.4;return false}return h.age<14});
